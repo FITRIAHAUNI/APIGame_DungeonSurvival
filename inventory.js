@@ -7,7 +7,7 @@ const db = client.db('ds_db');
 let { compareToken } = require('./token.js');
 
 const getPlayerById = async (playerId) => {
-    if (!playerId) {
+    if (!playerId || typeof playerId !== 'string' || playerId.trim() === '') {
         logger.error('Invalid player ID format');
         throw new Error("Invalid ID format");
     }
@@ -168,12 +168,28 @@ InventoryRouter.delete('/delete/inventory', compareToken, async (req, res) => {
 
 // GET the items in the shop
 InventoryRouter.get('/shop', async (req, res) => {
+    const { playerId } = req.body;
+
+    // Validate playerId input
+    if (!playerId || typeof playerId !== 'string' || playerId.trim() === '') {
+        logger.warn('Invalid playerId format in /shop request');
+        return res.status(400).send('Invalid playerId format');
+    }
+
     try {
+        // Check if player exists
+        const player = await db.collection('stats').findOne({ playerId });
+        if (!player) {
+            logger.warn(Player not found with ID: ${playerId});
+            return res.status(404).send('Player not found');
+        }
+
+        // Fetch items from the shop
         const items = await db.collection('potion').find().toArray();
         logger.info('Shop items fetched successfully');
-        res.send(items);
+        res.status(200).send(items);
     } catch (error) {
         logger.error(Error fetching shop items: ${error.message});
-        res.status(500).send('An error occurred');
+        res.status(500).send('An error occurred while fetching shop items');
     }
 });
