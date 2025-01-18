@@ -1,94 +1,112 @@
-let client = require(`./database.js`)
-let collection_almanac = client.db('ds_db').collection('almanac')
-let collection_stats = client.db('ds_db').collection('stats')
+const logger = require('./logger');
+let client = require('./database.js');
+let collection_almanac = client.db('ds_db').collection('almanac');
+let collection_stats = client.db('ds_db').collection('stats');
 
-module.exports = { update_enemy, randomise_enemy_skill }
+module.exports = { update_enemy, randomise_enemy_skill };
 
 async function randomise_enemy() {
+    try {
+        let enemy_list = await collection_almanac.find().toArray();
 
-    let enemy_list = await collection_almanac.find().toArray()
+        // Making a random index to choose in almanac
+        let randomEnemyIndex = Math.floor(Math.random() * enemy_list.length);
 
-    //making a random index to choose in almanac
-    let randomEnemyIndex = Math.floor(Math.random() * enemy_list.length)
+        // This is the enemy chosen at random
+        let chosenEnemy = enemy_list[randomEnemyIndex];
+        logger.info('Random enemy selected', { enemy: chosenEnemy.enemy });
 
-    //this is the enemy chosen at random
-    let chosenEnemy = enemy_list[randomEnemyIndex]
-
-    return chosenEnemy
+        return chosenEnemy;
+    } catch (error) {
+        logger.error('Error randomizing enemy', { error: error.message });
+        throw error;
+    }
 }
 
 async function randomise_enemy_skill(enemy_name) {
+    try {
+        let enemy_current = await collection_almanac.findOne({ enemy: enemy_name });
 
-    let enemy_current = await collection_almanac.findOne(
-        { enemy: enemy_name }
-    )
+        if (!enemy_current || !enemy_current.skill || enemy_current.skill.length === 0) {
+            logger.warn(No skills found for enemy: ${enemy_name});
+            throw new Error('Enemy has no skills available');
+        }
 
-    let randomEnemySkillIndex = Math.floor(Math.random() * enemy_current.skill.length)
+        let randomEnemySkillIndex = Math.floor(Math.random() * enemy_current.skill.length);
+        let enemy_new_skill = enemy_current.skill[randomEnemySkillIndex];
 
-    enemy_new_skill = enemy_current.skill[randomEnemySkillIndex]
+        logger.info('Random skill selected for enemy', { enemy: enemy_name, skill: enemy_new_skill });
 
-    return enemy_new_skill
-
-    // let enemy_change_skill = await client.db('ds_db').collection('stats').updateOne(
-    //     { playerId: player.playerId },
-    //     { $set: { enemy_next_move: enemy_new_skill } }
-    // )
+        return enemy_new_skill;
+    } catch (error) {
+        logger.error('Error randomizing enemy skill', { error: error.message });
+        throw error;
+    }
 }
 
-async function update_enemy (playerId) {
+async function update_enemy(playerId) {
+    try {
+        let current_enemy = await collection_stats.findOne({ playerId });
 
-    let current_enemy = await collection_stats.findOne(
-        { playerId: playerId }
-    )
+        if (!current_enemy) {
+            logger.warn(Player not found: ${playerId});
+            throw new Error('Player not found');
+        }
 
-    let enemy_name
-    let enemy_health
-    let is_alive
+        let enemy_name;
+        let enemy_health;
+        let is_alive;
 
-    // enemy is dead
-    if(current_enemy.enemy_current_health <= 0) {
+        // Enemy is dead
+        if (current_enemy.enemy_current_health <= 0) {
+            is_alive = false;
 
-        is_alive = false
+            let how_much = await collection_almanac.findOne({ enemy: current_enemy.current_enemy });
 
-        let how_much = await collection_almanac.findOne(
-            { enemy: current_enemy.current_enemy }
-        )
+            if (!how_much) {
+                logger.warn(Enemy details not found in almanac: ${current_enemy.current_enemy});
+                throw new Error('Enemy reward details not found');
+            }
 
-        let reward = await collection_stats.updateOne(
-            { playerId: playerId },
-            {
-                $inc:
+            await collection_stats.updateOne(
+                { playerId },
                 {
-                    coin: how_much.coin,
-                    current_score: how_much.score
+                    $inc: {
+                        coin: how_much.coin,
+                        current_score: how_much.score
+                    }
+                }
+            );
+
+            logger.info('Player rewarded for defeating enemy', { playerId, coin: how_much.coin, score: how_much.score });
+
+            current_enemy = await randomise_enemy();
+            enemy_name = current_enemy.enemy;
+            enemy_health = current_enemy.base_health;
+        } else { // Enemy is still alive
+            is_alive = true;
+            enemy_name = current_enemy.current_enemy;
+            enemy_health = current_enemy.enemy_current_health;
+        }
+
+        let enemy_skill = await randomise_enemy_skill(enemy_name);
+
+        await collection_stats.updateOne(
+            { playerId },
+            {
+                $set: {
+                    current_enemy: enemy_name,
+                    enemy_current_health: enemy_health,
+                    enemy_next_move: enemy_skill
                 }
             }
-        )
+        );
 
-        current_enemy = await randomise_enemy()
-        enemy_name = current_enemy.enemy
-        enemy_health = current_enemy.base_health
+        logger.info('Enemy updated', { playerId, enemy: enemy_name, health: enemy_health, nextMove: enemy_skill });
 
-    } else {    //enemy is still alive *dramatic music*
-        is_alive = true
-        enemy_name = current_enemy.current_enemy
-        enemy_health = current_enemy.enemy_current_health
+        return is_alive;
+    } catch (error) {
+        logger.error('Error updating enemy', { playerId, error: error.message });
+        throw error;
     }
-
-    let enemy_skill = await randomise_enemy_skill(enemy_name)
-
-    let new_enemy = await collection_stats.updateOne(
-        { playerId: playerId },
-        {
-            $set:
-            {
-                current_enemy: enemy_name,
-                enemy_current_health: enemy_health,
-                enemy_next_move: enemy_skill
-            }
-        }
-    )
-
-    return is_alive
-
 }
