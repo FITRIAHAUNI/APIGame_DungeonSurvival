@@ -134,7 +134,7 @@ registrationRouter.get('/leaderboard', async(req, res) => {
 registrationRouter.post('/account/register',async(req,res)=>{
 
   if(!req.body.player || !req.body.password){
-    res.status(404).set('Content-Type', 'text/plain').send('Please provide username and password\nplayer:\npassword:');
+    res.status(404).set('Content-Type', 'text/plain').send('Please provide username and password\r\nplayer:\r\npassword:');
     return
   }
 
@@ -183,7 +183,7 @@ registrationRouter.post('/account/register',async(req,res)=>{
       { player: req.body.player }
      )
 
-    res.send(`Account created successfully\nuser id: ${give_id._id}\nplease remember your user id!`);
+    res.send(`Account created successfully\r\nuser id: ${give_id._id}\r\nplease remember your user id!`);
     
 })
 
