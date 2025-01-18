@@ -51,7 +51,7 @@ registrationRouter.post('/account/login',async(req,res) => {
     console.log(result);
     console.log(req.body);
     if(!req.body.player || !req.body.password){
-      res.status(404).send('Please provide username and password\nplayer:\npassword:')
+      res.status(404).set('Content-Type', 'text/plain').send('Please provide username and password\nplayer:\npassword:');
       return
     }
     else if(req.body.player != null && req.body.password != null){
@@ -134,7 +134,7 @@ registrationRouter.get('/leaderboard', async(req, res) => {
 registrationRouter.post('/account/register',async(req,res)=>{
 
   if(!req.body.player || !req.body.password){
-    res.status(404).send('Please provide username and password\nplayer:\npassword:')
+    res.status(404).set('Content-Type', 'text/plain').send('Please provide username and password\nplayer:\npassword:');
     return
   }
 
