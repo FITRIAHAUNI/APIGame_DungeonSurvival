@@ -51,7 +51,7 @@ registrationRouter.post('/account/login',async(req,res) => {
     console.log(result);
     console.log(req.body);
     if(!req.body.player || !req.body.password){
-      res.status(404).send('Please provide username and password')
+      res.status(404).send('Please provide username and password \n "player":"" \n "password":"" ')
       return
     }
     else if(req.body.player != null && req.body.password != null){
