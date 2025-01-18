@@ -134,7 +134,7 @@ registrationRouter.get('/leaderboard', async(req, res) => {
 registrationRouter.post('/account/register',async(req,res)=>{
 
   if(!req.body.player || !req.body.password){
-    res.status(404).send('Please provide username and password')
+    res.status(404).send('Please provide username and password \n "player":"" \n "password":"" ')
     return
   }
 
